@@ -42,8 +42,12 @@ const Reports = {
     try {
       chains = (await API.listReportChains()).chains || [];
     } catch (e) {
-      document.getElementById('report-list').innerHTML =
-        `<p class="muted">更正链加载失败：${e.message}</p>`;
+      const listEl = document.getElementById('report-list');
+      listEl.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = `更正链加载失败：${e.message}`;
+      listEl.appendChild(p);
       return;
     }
     this.chains = chains;
@@ -84,11 +88,17 @@ const Reports = {
         meta.appendChild(name);
         const sub = document.createElement('div');
         sub.className = 'sub';
-        const chainTxt = chain.length > 1
-          ? ` · <span style="color:var(--accent)">更正链 ×${chain.length}</span>（当前为第 ${chain.length} 版）`
-          : '';
-        sub.innerHTML = `${r.filename} · ${r.width}×${r.height}px · 细胞 ${r.cellCount} 个 · ` +
-          `发布于 ${r.createdAt} · 基于草稿 v${r.draftVersion}${chainTxt}`;
+        sub.appendChild(document.createTextNode(
+          `${r.filename} · ${r.width}×${r.height}px · 细胞 ${r.cellCount} 个 · ` +
+          `发布于 ${r.createdAt} · 基于草稿 v${r.draftVersion}`));
+        if (chain.length > 1) {
+          sub.appendChild(document.createTextNode(' · '));
+          const chainMark = document.createElement('span');
+          chainMark.style.color = 'var(--accent)';
+          chainMark.textContent = `更正链 ×${chain.length}`;
+          sub.appendChild(chainMark);
+          sub.appendChild(document.createTextNode(`（当前为第 ${chain.length} 版）`));
+        }
         meta.appendChild(sub);
         if (chain.reason) {
           const reason = document.createElement('div');
@@ -141,18 +151,34 @@ const Reports = {
     chain.history.slice().reverse().forEach((m) => {
       const row = document.createElement('div');
       row.className = 'trace-item';
+      const head = document.createElement('div');
+      head.className = 't-head';
+      const tag = document.createElement('span');
+      tag.className = 'trace-tag old';
+      tag.textContent = '历史';
+      head.appendChild(tag);
       const link = document.createElement('a');
       link.href = `#/report/${m.id}`;
       link.className = 't-name';
       link.style.color = 'var(--text)';
       link.textContent = m.title;
-      row.innerHTML =
-        `<div class="t-head"><span class="trace-tag old">历史</span></div>` +
-        `<div class="t-sub">草稿 v${m.draftVersion} · 细胞 ${m.cellCount} 个 · ${m.createdAt}</div>` +
-        (m.correctsReportId
-          ? `<div class="trace-reason">更正原因：${this.esc(m.correctionReason || '（未填写）')}</div>`
-          : '<div class="t-sub">普通发布</div>');
-      row.querySelector('.t-head').appendChild(link);
+      head.appendChild(link);
+      row.appendChild(head);
+      const sub = document.createElement('div');
+      sub.className = 't-sub';
+      sub.textContent = `草稿 v${m.draftVersion} · 细胞 ${m.cellCount} 个 · ${m.createdAt}`;
+      row.appendChild(sub);
+      if (m.correctsReportId) {
+        const reason = document.createElement('div');
+        reason.className = 'trace-reason';
+        reason.textContent = `更正原因：${m.correctionReason || '（未填写）'}`;
+        row.appendChild(reason);
+      } else {
+        const normal = document.createElement('div');
+        normal.className = 't-sub';
+        normal.textContent = '普通发布';
+        row.appendChild(normal);
+      }
       box.appendChild(row);
     });
     return box;
@@ -208,8 +234,9 @@ const Reports = {
     API.getImage(r.imageId).then((d) => { this.draft = d; this.renderChainParts(); }).catch(() => {});
 
     document.getElementById('rp-title').textContent = r.title;
+    const esc = (s) => window.SafeDom.escHtml(s);
     document.getElementById('rp-meta').innerHTML =
-      `图片：<b>${r.filename}</b>（${r.width}×${r.height} px）<br>` +
+      `图片：<b>${esc(r.filename)}</b>（${r.width}×${r.height} px）<br>` +
       `发布时间：${r.createdAt}<br>` +
       `发布时草稿版本：<b>v${r.draftVersion}</b><br>` +
       `标尺：p1 (${r.calib.p1.x.toFixed(1)}, ${r.calib.p1.y.toFixed(1)})，` +
@@ -218,12 +245,12 @@ const Reports = {
       `细胞：<b>${r.cells.length}</b> 个（结果为发布时冻结值，不随后续草稿变化）` +
       (r.correctsReportId
         ? `<br>更正自：<a href="#/report/${r.correctsReportId}">上一版报告</a>` +
-          `<br>更正原因：<b style="color:#ffe2b0">${this.esc(r.correctionReason || '（未填写）')}</b>`
+          `<br>更正原因：<b style="color:#ffe2b0">${esc(r.correctionReason || '（未填写）')}</b>`
         : '');
 
     const rows = r.cells.map((c, i) => `
       <tr>
-        <td><span style="color:${window.CANVAS_COLORS[i % window.CANVAS_COLORS.length]}">●</span> ${c.name || `细胞 ${i + 1}`}</td>
+        <td><span style="color:${window.CANVAS_COLORS[i % window.CANVAS_COLORS.length]}">●</span> ${esc(c.name || `细胞 ${i + 1}`)}</td>
         <td>${c.holes.length}</td>
         <td>${this.fmt(c.areaUm2)}</td>
         <td>${this.fmt(c.perimeterUm)}</td>
@@ -242,7 +269,7 @@ const Reports = {
     } else {
       const frows = fs.map((s) => `
         <tr>
-          <td><span style="color:#ffd400">●</span> ${s.name}</td>
+          <td><span style="color:#ffd400">●</span> ${esc(s.name)}</td>
           <td>${s.holes}</td>
           <td>${s.areaText}</td>
           <td>${s.cellCount}</td>
@@ -429,9 +456,7 @@ const Reports = {
   },
 
   esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return window.SafeDom.escHtml(s);
   },
 
   // ---------- 更正链：横幅、历史追溯、发起更正 ----------
@@ -622,7 +647,11 @@ const Reports = {
       cb.onchange = () => this.toggleReportMergeField(r, f.id, cb.checked);
       row.appendChild(cb);
       const name = document.createElement('span');
-      name.innerHTML = `<span style="color:#ffd400">●</span> ${f.name || `视野 ${i + 1}`}`;
+      const dot = document.createElement('span');
+      dot.style.color = '#ffd400';
+      dot.textContent = '●';
+      name.appendChild(dot);
+      name.appendChild(document.createTextNode(` ${f.name || `视野 ${i + 1}`}`));
       row.appendChild(name);
       listEl.appendChild(row);
     });
@@ -638,23 +667,28 @@ const Reports = {
       const selected = window.MergeStats.resolveMergeSelection(fields, this.mergeSelected);
       s = window.MergeStats.buildMergeStats(selected, r.cells || [], r.calib ? r.calib.scale : null);
     } catch (e) {
-      resEl.innerHTML = `<p class="merge-error">${e.message}</p>`;
+      resEl.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'merge-error';
+      p.textContent = e.message;
+      resEl.appendChild(p);
       return;
     }
 
+    const esc = (v) => window.SafeDom.escHtml(v);
     const names = s.fieldNames.join('、');
     const counted = (s.countedCells || []).map((c) => c.name || c.key).join('、');
     resEl.innerHTML = `
       <table class="measure compact">
         <tbody>
-          <tr><th>合并视野</th><td>${s.fieldCount} 个（${names}）</td></tr>
+          <tr><th>合并视野</th><td>${s.fieldCount} 个（${esc(names)}）</td></tr>
           <tr><th>并集净面积 mm²</th><td>${s.areaText}</td></tr>
           <tr><th>细胞数</th><td>${s.cellCount}</td></tr>
           <tr><th>细胞密度 个/mm²</th><td>${s.densityText}</td></tr>
           <tr><th>计入细胞净面积总和 mm²</th><td>${s.countedCellAreaText}</td></tr>
         </tbody>
       </table>
-      <p class="hint">同一细胞在并集中只计一次。计入细胞：${counted || '（无）'}。
+      <p class="hint">同一细胞在并集中只计一次。计入细胞：${esc(counted || '（无）')}。
       结果只读取<b>发布时冻结数据</b>（发布时草稿 v${r.draftVersion}），不随后续草稿变化。</p>`;
   },
 
@@ -687,6 +721,7 @@ const Reports = {
   renderCoverageResult(body) {
     const resEl = document.getElementById('rp-coverage-result');
     const s = body.coverage;
+    const esc = (v) => window.SafeDom.escHtml(v);
     const contributing = (s.contributingCells || [])
       .map((c) => c.name || c.key).join('、');
     resEl.innerHTML = `
@@ -704,7 +739,7 @@ const Reports = {
       </table>
       <p class="hint">覆盖按<b>几何交集</b>计算：跨边界细胞只计视野内部分，多个细胞重叠只计一次，
       孔洞与仅边界接触不贡献面积；与按质心计数的密度统计无关。
-      有交集的细胞 ${s.contributingCellCount} 个：${this.esc(contributing) || '（无）'}。
+      有交集的细胞 ${s.contributingCellCount} 个：${esc(contributing) || '（无）'}。
       结果只读取<b>发布时冻结数据</b>（发布时草稿 v${body.draftVersion}），
       后续草稿修改或报告更正均不改变本报告结果；本查询不写回报告。</p>`;
   },

@@ -47,7 +47,11 @@ const App = {
     try {
       images = await API.listImages();
     } catch (e) {
-      el.innerHTML = `<p class="muted">${e.message}</p>`;
+      el.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = e.message;
+      el.appendChild(p);
       return;
     }
     if (!images.length) {
@@ -70,12 +74,26 @@ const App = {
       meta.className = 'meta';
       const name = document.createElement('div');
       name.className = 'name';
-      name.innerHTML = `<a href="#/edit/${im.id}" style="color:var(--text)">${im.filename}</a>`;
+      const a = document.createElement('a');
+      a.href = `#/edit/${im.id}`;
+      a.style.color = 'var(--text)';
+      a.textContent = im.filename;
+      name.appendChild(a);
       meta.appendChild(name);
       const sub = document.createElement('div');
       sub.className = 'sub';
-      const scale = im.calib ? ` · 1 px = ${im.calib.scale.toFixed(6)} μm` : ' · <span style="color:var(--warn)">未定标</span>';
-      sub.innerHTML = `${im.width}×${im.height} px · 草稿 v${im.version} · 细胞 ${im.cells.length} 个${scale} · 上传于 ${im.createdAt}`;
+      sub.appendChild(document.createTextNode(
+        `${im.width}×${im.height} px · 草稿 v${im.version} · 细胞 ${im.cells.length} 个`));
+      if (im.calib) {
+        sub.appendChild(document.createTextNode(` · 1 px = ${im.calib.scale.toFixed(6)} μm`));
+      } else {
+        sub.appendChild(document.createTextNode(' · '));
+        const warn = document.createElement('span');
+        warn.style.color = 'var(--warn)';
+        warn.textContent = '未定标';
+        sub.appendChild(warn);
+      }
+      sub.appendChild(document.createTextNode(` · 上传于 ${im.createdAt}`));
       meta.appendChild(sub);
       item.appendChild(meta);
 

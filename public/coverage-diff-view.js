@@ -41,8 +41,7 @@ const CoverageDiffView = {
       bSel.innerHTML = '';
       this.showError(`报告列表加载失败：${e.message}`);
       return;
-    }
-    // 列表按发布时间倒序返回；选择器保持该顺序，并标注更正链位置
+    }    // 列表按发布时间倒序返回；选择器保持该顺序，并标注更正链位置
     this.reports = reports;
     this.fillReportSelects();
   },
@@ -135,14 +134,15 @@ const CoverageDiffView = {
     document.getElementById('covdiff-result').classList.remove('hidden');
 
     const meta = document.getElementById('covdiff-meta');
+    const esc = (s) => window.SafeDom.escHtml(s);
     meta.innerHTML = `
-      <div><b>基线报告：</b>《${baseline.title}》 v${baseline.draftVersion}
+      <div><b>基线报告：</b>《${esc(baseline.title)}》 v${baseline.draftVersion}
         （${baseline.createdAt}，1 px = ${baseline.scaleUmPerPx} μm）
         ${baseline.correctsReportId ? '· 更正链历史报告' : ''}</div>
-      <div><b>复测报告：</b>《${retest.title}》 v${retest.draftVersion}
+      <div><b>复测报告：</b>《${esc(retest.title)}》 v${retest.draftVersion}
         （${retest.createdAt}，1 px = ${retest.scaleUmPerPx} μm）
         ${retest.correctsReportId ? '· 更正链历史报告' : ''}</div>
-      <div><b>同一切片：</b>${baseline.imageId} ｜ <b>基线视野：</b>${diff.fieldName || '(未命名)'}
+      <div><b>同一切片：</b>${esc(baseline.imageId)} ｜ <b>基线视野：</b>${esc(diff.fieldName || '(未命名)')}
         （按${matchedBy === 'id' ? 'id' : '名称'}匹配，孔洞 ${diff.fieldHoles} 个）</div>`;
 
     const note = document.getElementById('covdiff-scale-note');

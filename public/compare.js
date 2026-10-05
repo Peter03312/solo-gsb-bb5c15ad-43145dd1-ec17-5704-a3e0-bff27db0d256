@@ -35,6 +35,11 @@ function cmpCellLabel(cell, i) {
   return cell && cell.name && String(cell.name).trim() ? String(cell.name).trim() : `细胞 ${i + 1}`;
 }
 
+// 用户文本（报告标题/文件名、细胞名）入 HTML 前统一按字面量转义
+function cmpEsc(s) {
+  return window.SafeDom.escHtml(s);
+}
+
 const Compare = {
   mode: 'new',          // 'new' | 'edit'
   id: null,
@@ -56,7 +61,11 @@ const Compare = {
     try {
       items = await API.listComparisons();
     } catch (e) {
-      el.innerHTML = `<p class="muted">${e.message}</p>`;
+      el.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = e.message;
+      el.appendChild(p);
       return;
     }
     if (!items.length) {
@@ -296,12 +305,13 @@ const Compare = {
       pickNew.classList.add('hidden');
       pickFixed.classList.remove('hidden');
       const b = this.baselineReport, r = this.retestReport;
+      const esc = cmpEsc;
       pickFixed.innerHTML = `
         <div class="cmp-fixed">
-          <div><span class="cmp-tag base">基线</span> <b>${b ? b.title : '…'}</b>
-            <span class="muted">${b ? `${b.filename} · 细胞 ${b.cells.length} 个 · 发布于 ${b.createdAt}` : ''}</span></div>
-          <div><span class="cmp-tag retest">复测</span> <b>${r ? r.title : '…'}</b>
-            <span class="muted">${r ? `${r.filename} · 细胞 ${r.cells.length} 个 · 发布于 ${r.createdAt}` : ''}</span></div>
+          <div><span class="cmp-tag base">基线</span> <b>${b ? esc(b.title) : '…'}</b>
+            <span class="muted">${b ? esc(`${b.filename} · 细胞 ${b.cells.length} 个 · 发布于 ${b.createdAt}`) : ''}</span></div>
+          <div><span class="cmp-tag retest">复测</span> <b>${r ? esc(r.title) : '…'}</b>
+            <span class="muted">${r ? esc(`${r.filename} · 细胞 ${r.cells.length} 个 · 发布于 ${r.createdAt}`) : ''}</span></div>
         </div>
         <p class="hint">比较记录创建后两侧报告固定不可更换；全部数值取自发布时冻结的定标与测量值。</p>`;
     }
@@ -349,17 +359,46 @@ const Compare = {
     const freeBase = baseAll.filter((e) => !usedBase.has(e.key));
     const freeRetest = retestAll.filter((e) => !usedRetest.has(e.key));
 
-    const poolCol = (side, title, entries, free, sel) => `
-      <div class="cmp-pool">
-        <h4>${title} <span class="muted">（未配对 ${free.length}/${entries.length}）</span></h4>
-        ${!entries.length ? '<p class="hint">该报告中没有细胞。</p>' : ''}
-        ${!free.length && entries.length ? '<p class="hint">（全部细胞已配对）</p>' : ''}
-        ${free.map((e) => `
-          <button type="button" class="cmp-chip${sel === e.key ? ' selected' : ''}" data-side="${side}" data-key="${e.key}">
-            <span class="cmp-chip-name">${e.label}</span>
-            <span class="cmp-chip-vals">净面积 ${cmpFmt(e.cell.areaUm2)} μm² · 总周长 ${cmpFmt(e.cell.perimeterUm)} μm</span>
-          </button>`).join('')}
-      </div>`;
+    // 未配对细胞池：用 DOM 构造，data-key 保持原始 key（不经 HTML 转义），名称按文本写入
+    const poolCol = (side, title, entries, free, sel) => {
+      const col = document.createElement('div');
+      col.className = 'cmp-pool';
+      const h = document.createElement('h4');
+      h.appendChild(document.createTextNode(`${title} `));
+      const cnt = document.createElement('span');
+      cnt.className = 'muted';
+      cnt.textContent = `（未配对 ${free.length}/${entries.length}）`;
+      h.appendChild(cnt);
+      col.appendChild(h);
+      if (!entries.length) {
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent = '该报告中没有细胞。';
+        col.appendChild(p);
+      } else if (!free.length) {
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent = '（全部细胞已配对）';
+        col.appendChild(p);
+      }
+      free.forEach((e) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cmp-chip' + (sel === e.key ? ' selected' : '');
+        btn.dataset.side = side;
+        btn.dataset.key = e.key;
+        const nm = document.createElement('span');
+        nm.className = 'cmp-chip-name';
+        nm.textContent = e.label;
+        const vals = document.createElement('span');
+        vals.className = 'cmp-chip-vals';
+        vals.textContent = `净面积 ${cmpFmt(e.cell.areaUm2)} μm² · 总周长 ${cmpFmt(e.cell.perimeterUm)} μm`;
+        btn.appendChild(nm);
+        btn.appendChild(vals);
+        col.appendChild(btn);
+      });
+      return col;
+    };
 
     const pairRows = this.pairs.map((p, i) => {
       const be = this.findEntry(this.baselineReport, p.baselineCellKey);
@@ -371,8 +410,8 @@ const Compare = {
       return `
         <tr>
           <td>${i + 1}</td>
-          <td class="cellname">${be.label}</td>
-          <td class="cellname">${re.label}</td>
+          <td class="cellname">${cmpEsc(be.label)}</td>
+          <td class="cellname">${cmpEsc(re.label)}</td>
           <td>${cmpFmt(ab)}</td>
           <td>${cmpFmt(ar)}</td>
           <td class="num">${cmpSigned(ar - ab)}</td>
@@ -389,8 +428,8 @@ const Compare = {
       <p class="hint">点击<b>基线侧</b>一个未配对细胞，再点击<b>复测侧</b>一个未配对细胞即建立一对一配对；
         同名细胞<b>不会</b>自动配对。再次点击已选中的细胞可取消选择。已配对细胞从下方两侧列表移除，可在配对表中「解除」。</p>
       <div class="cmp-pools">
-        ${poolCol('baseline', '基线侧未配对细胞', baseAll, freeBase, this.selBase)}
-        ${poolCol('retest', '复测侧未配对细胞', retestAll, freeRetest, this.selRetest)}
+        <div data-pool="baseline"></div>
+        <div data-pool="retest"></div>
       </div>
 
       <h3>配对比较结果 <span class="muted">（${this.pairs.length} 对；差值 = 复测 − 基线）</span></h3>
@@ -414,6 +453,11 @@ const Compare = {
         </table>
       </div>
       <p class="hint">基线值为 0 时变化率显示「不可计算」；未配对细胞始终分别保留在上方两侧列表中。</p>`;
+
+    ws.querySelector('[data-pool="baseline"]').replaceWith(
+      poolCol('baseline', '基线侧未配对细胞', baseAll, freeBase, this.selBase));
+    ws.querySelector('[data-pool="retest"]').replaceWith(
+      poolCol('retest', '复测侧未配对细胞', retestAll, freeRetest, this.selRetest));
 
     ws.querySelectorAll('.cmp-chip').forEach((btn) => {
       btn.onclick = () => this.clickCell(btn.dataset.side, btn.dataset.key);

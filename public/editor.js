@@ -630,10 +630,11 @@ const Editor = {
       return;
     }
     const p = m.preview;
+    const esc = (s) => window.SafeDom.escHtml(s);
     const rows = p.cells.map((c) =>
-      `<div class="migrate-row ${c.ok ? 'ok' : 'err'}">${c.ok ? '✓' : '✗'} ${c.label}` +
+      `<div class="migrate-row ${c.ok ? 'ok' : 'err'}">${c.ok ? '✓' : '✗'} ${esc(c.label)}` +
       `${c.ok && c.areaUm2 != null ? `（净面积 ${fmt(c.areaUm2)} μm²，周长 ${fmt(c.perimeterUm)} μm）` : ''}` +
-      `${c.ok ? '' : `：${c.error}`}</div>`).join('');
+      `${c.ok ? '' : `：${esc(c.error)}`}</div>`).join('');
     res.innerHTML =
       `<div class="migrate-summary ${p.ok ? 'ok' : 'err'}">` +
       `${p.ok ? `全部 ${p.okCount} 个细胞通过校验（预览时目标草稿版本 v${p.target.version}），可确认迁移`
@@ -658,7 +659,11 @@ const Editor = {
       this.revisions = data.revisions;
       this.renderRevisionList();
     } catch (e) {
-      el.innerHTML = `<p class="muted">修订时间线加载失败：${e.message}</p>`;
+      el.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = `修订时间线加载失败：${e.message}`;
+      el.appendChild(p);
     }
   },
 
@@ -712,9 +717,7 @@ const Editor = {
   },
 
   escapeHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return window.SafeDom.escHtml(s);
   },
 
   async togglePreview(revisionId) {
@@ -1119,7 +1122,7 @@ const Editor = {
     } else {
       const rows = fieldStats.map((s, i) => `
         <tr>
-          <td><span style="color:${FIELD_COLOR}">●</span> ${s.name}${this.fieldsDirty ? ' *' : ''}</td>
+          <td><span style="color:${FIELD_COLOR}">●</span> ${this.escapeHtml(s.name)}${this.fieldsDirty ? ' *' : ''}</td>
           <td>${s.holes}</td>
           <td>${fmtMm2(s.areaMm2)}</td>
           <td>${s.cellCount}</td>
@@ -1149,7 +1152,7 @@ const Editor = {
     } else {
       const rows = this.cells.map((cell, i) => `
         <tr>
-          <td><span style="color:${PALETTE[i % PALETTE.length]}">●</span> ${cell.name || `细胞 ${i + 1}`}${this.dirty ? ' *' : ''}</td>
+          <td><span style="color:${PALETTE[i % PALETTE.length]}">●</span> ${this.escapeHtml(cell.name || `细胞 ${i + 1}`)}${this.dirty ? ' *' : ''}</td>
           <td>${cell.holes.length}</td>
           <td>${fmt(cell.areaUm2)}</td>
           <td>${fmt(cell.perimeterUm)}</td>
@@ -1236,7 +1239,11 @@ const Editor = {
       cb.onchange = () => this.toggleMergeField(f.id, cb.checked);
       row.appendChild(cb);
       const name = document.createElement('span');
-      name.innerHTML = `<span style="color:${FIELD_COLOR}">●</span> ${f.name || `视野 ${i + 1}`}${this.fieldsDirty ? ' *' : ''}`;
+      const dot = document.createElement('span');
+      dot.style.color = FIELD_COLOR;
+      dot.textContent = '●';
+      name.appendChild(dot);
+      name.appendChild(document.createTextNode(` ${f.name || `视野 ${i + 1}`}${this.fieldsDirty ? ' *' : ''}`));
       row.appendChild(name);
       listEl.appendChild(row);
     });
@@ -1252,23 +1259,28 @@ const Editor = {
       const selected = window.MergeStats.resolveMergeSelection(this.fields, this.mergeSelected);
       s = window.MergeStats.buildMergeStats(selected, this.cells, calib ? calib.scale : null);
     } catch (e) {
-      resEl.innerHTML = `<p class="merge-error">${e.message}</p>`;
+      resEl.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'merge-error';
+      p.textContent = e.message;
+      resEl.appendChild(p);
       return;
     }
 
+    const esc = (v) => window.SafeDom.escHtml(v);
     const names = s.fieldNames.join('、');
     const counted = (s.countedCells || []).map((c) => c.name || c.key).join('、');
     resEl.innerHTML = `
       <table class="measure compact">
         <tbody>
-          <tr><th>合并视野</th><td>${s.fieldCount} 个（${names}）</td></tr>
+          <tr><th>合并视野</th><td>${s.fieldCount} 个（${esc(names)}）</td></tr>
           <tr><th>并集净面积 mm²</th><td>${s.areaText}</td></tr>
           <tr><th>细胞数</th><td>${s.cellCount}</td></tr>
           <tr><th>细胞密度 个/mm²</th><td>${s.densityText}</td></tr>
           <tr><th>计入细胞净面积总和 mm²</th><td>${s.countedCellAreaText}</td></tr>
         </tbody>
       </table>
-      <p class="hint">同一细胞在并集中只计一次。计入细胞：${counted || '（无）'}。
+      <p class="hint">同一细胞在并集中只计一次。计入细胞：${esc(counted || '（无）')}。
       ${this.fieldsDirty || this.dirty ? '当前含<b>未保存</b>轮廓/视野，结果按本地工作副本实时计算；保存后与服务端一致。' : ''}
       ${calib ? '' : '当前<b>未定标</b>：细胞数保留，面积/密度/总和显示“待定标”。'}</p>`;
   },
@@ -1307,7 +1319,11 @@ const Editor = {
       resolved = window.MergeStats.resolveFieldIdentifier(this.fields, q);
     } catch (e) {
       this.coverageResult = { error: e.message };
-      resEl.innerHTML = `<p class="merge-error">${e.message}</p>`;
+      resEl.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'merge-error';
+      p.textContent = e.message;
+      resEl.appendChild(p);
       return;
     }
     const calib = this.img ? this.img.calib : null;
@@ -1322,25 +1338,33 @@ const Editor = {
     if (!resEl) return;
     const s = this.coverageResult;
     if (!s) { resEl.innerHTML = ''; return; }
-    if (s.error) { resEl.innerHTML = `<p class="merge-error">${s.error}</p>`; return; }
+    if (s.error) {
+      resEl.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'merge-error';
+      p.textContent = s.error;
+      resEl.appendChild(p);
+      return;
+    }
+    const esc = (v) => window.SafeDom.escHtml(v);
     const contributing = (s.contributingCells || [])
       .map((c) => c.name || c.key).join('、');
     resEl.innerHTML = `
       <table class="measure compact">
         <tbody>
-          <tr><th>视野</th><td>${s.fieldName || s.fieldId}${s.matchedBy === 'name' ? '（按名称匹配）' : ''}</td></tr>
+          <tr><th>视野</th><td>${esc(s.fieldName || s.fieldId)}${s.matchedBy === 'name' ? '（按名称匹配）' : ''}</td></tr>
           <tr><th>视野净面积</th>
-            <td>${this.fmtPx(s.fieldAreaPx)} px² · ${s.fieldAreaText}${s.calibrated ? ' mm²' : ''}</td></tr>
+            <td>${this.fmtPx(s.fieldAreaPx)} px² · ${esc(s.fieldAreaText)}${s.calibrated ? ' mm²' : ''}</td></tr>
           <tr><th>细胞覆盖面积</th>
-            <td>${this.fmtPx(s.coveredAreaPx)} px² · ${s.coveredAreaText}${s.calibrated ? ' mm²' : ''}</td></tr>
+            <td>${this.fmtPx(s.coveredAreaPx)} px² · ${esc(s.coveredAreaText)}${s.calibrated ? ' mm²' : ''}</td></tr>
           <tr><th>未覆盖面积</th>
-            <td>${this.fmtPx(s.uncoveredAreaPx)} px² · ${s.uncoveredAreaText}${s.calibrated ? ' mm²' : ''}</td></tr>
-          <tr><th>覆盖率</th><td><b>${s.coverageText}</b></td></tr>
+            <td>${this.fmtPx(s.uncoveredAreaPx)} px² · ${esc(s.uncoveredAreaText)}${s.calibrated ? ' mm²' : ''}</td></tr>
+          <tr><th>覆盖率</th><td><b>${esc(s.coverageText)}</b></td></tr>
         </tbody>
       </table>
       <p class="hint">覆盖按<b>几何交集</b>计算：跨边界细胞只计视野内部分，多个细胞重叠只计一次，
       孔洞与仅边界接触不贡献面积；与按质心计数的密度统计无关。
-      有交集的细胞 ${s.contributingCellCount} 个：${contributing || '（无）'}。
+      有交集的细胞 ${s.contributingCellCount} 个：${esc(contributing || '（无）')}。
       ${this.fieldsDirty || this.dirty ? '当前含<b>未保存</b>轮廓/视野，结果按本地工作副本实时计算；保存后与服务端一致。' : ''}
       ${calib ? '' : '当前<b>未定标</b>：像素面积与覆盖率照常显示，物理面积为“待定标”。'}</p>`;
   },
@@ -1353,9 +1377,7 @@ const Editor = {
     if (!input || !resEl) return;
     if (document.activeElement !== input) input.value = this.coverageQuery || '';
     if (list) {
-      const escHtml = (s) => String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      const escHtml = (s) => window.SafeDom.escHtml(s);
       list.innerHTML = this.fields.map((f, i) => {
         const name = f.name || `视野 ${i + 1}`;
         return `<option value="${escHtml(f.id)}">${escHtml(name)}</option>`;
