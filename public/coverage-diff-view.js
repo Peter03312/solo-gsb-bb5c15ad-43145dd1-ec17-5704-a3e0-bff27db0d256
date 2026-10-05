@@ -136,13 +136,13 @@ const CoverageDiffView = {
 
     const meta = document.getElementById('covdiff-meta');
     meta.innerHTML = `
-      <div><b>基线报告：</b>《${baseline.title}》 v${baseline.draftVersion}
+      <div><b>基线报告：</b>《${window.escHtml(baseline.title)}》 v${baseline.draftVersion}
         （${baseline.createdAt}，1 px = ${baseline.scaleUmPerPx} μm）
         ${baseline.correctsReportId ? '· 更正链历史报告' : ''}</div>
-      <div><b>复测报告：</b>《${retest.title}》 v${retest.draftVersion}
+      <div><b>复测报告：</b>《${window.escHtml(retest.title)}》 v${retest.draftVersion}
         （${retest.createdAt}，1 px = ${retest.scaleUmPerPx} μm）
         ${retest.correctsReportId ? '· 更正链历史报告' : ''}</div>
-      <div><b>同一切片：</b>${baseline.imageId} ｜ <b>基线视野：</b>${diff.fieldName || '(未命名)'}
+      <div><b>同一切片：</b>${window.escHtml(baseline.imageId)} ｜ <b>基线视野：</b>${window.escHtml(diff.fieldName || '(未命名)')}
         （按${matchedBy === 'id' ? 'id' : '名称'}匹配，孔洞 ${diff.fieldHoles} 个）</div>`;
 
     const note = document.getElementById('covdiff-scale-note');

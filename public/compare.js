@@ -56,7 +56,7 @@ const Compare = {
     try {
       items = await API.listComparisons();
     } catch (e) {
-      el.innerHTML = `<p class="muted">${e.message}</p>`;
+      el.innerHTML = `<p class="muted">${window.escHtml(e.message)}</p>`;
       return;
     }
     if (!items.length) {
@@ -298,10 +298,10 @@ const Compare = {
       const b = this.baselineReport, r = this.retestReport;
       pickFixed.innerHTML = `
         <div class="cmp-fixed">
-          <div><span class="cmp-tag base">基线</span> <b>${b ? b.title : '…'}</b>
-            <span class="muted">${b ? `${b.filename} · 细胞 ${b.cells.length} 个 · 发布于 ${b.createdAt}` : ''}</span></div>
-          <div><span class="cmp-tag retest">复测</span> <b>${r ? r.title : '…'}</b>
-            <span class="muted">${r ? `${r.filename} · 细胞 ${r.cells.length} 个 · 发布于 ${r.createdAt}` : ''}</span></div>
+          <div><span class="cmp-tag base">基线</span> <b>${b ? window.escHtml(b.title) : '…'}</b>
+            <span class="muted">${b ? `${window.escHtml(b.filename)} · 细胞 ${b.cells.length} 个 · 发布于 ${b.createdAt}` : ''}</span></div>
+          <div><span class="cmp-tag retest">复测</span> <b>${r ? window.escHtml(r.title) : '…'}</b>
+            <span class="muted">${r ? `${window.escHtml(r.filename)} · 细胞 ${r.cells.length} 个 · 发布于 ${r.createdAt}` : ''}</span></div>
         </div>
         <p class="hint">比较记录创建后两侧报告固定不可更换；全部数值取自发布时冻结的定标与测量值。</p>`;
     }
@@ -355,8 +355,8 @@ const Compare = {
         ${!entries.length ? '<p class="hint">该报告中没有细胞。</p>' : ''}
         ${!free.length && entries.length ? '<p class="hint">（全部细胞已配对）</p>' : ''}
         ${free.map((e) => `
-          <button type="button" class="cmp-chip${sel === e.key ? ' selected' : ''}" data-side="${side}" data-key="${e.key}">
-            <span class="cmp-chip-name">${e.label}</span>
+          <button type="button" class="cmp-chip${sel === e.key ? ' selected' : ''}" data-side="${side}" data-key="${window.escHtml(e.key)}">
+            <span class="cmp-chip-name">${window.escHtml(e.label)}</span>
             <span class="cmp-chip-vals">净面积 ${cmpFmt(e.cell.areaUm2)} μm² · 总周长 ${cmpFmt(e.cell.perimeterUm)} μm</span>
           </button>`).join('')}
       </div>`;
@@ -371,8 +371,8 @@ const Compare = {
       return `
         <tr>
           <td>${i + 1}</td>
-          <td class="cellname">${be.label}</td>
-          <td class="cellname">${re.label}</td>
+          <td class="cellname">${window.escHtml(be.label)}</td>
+          <td class="cellname">${window.escHtml(re.label)}</td>
           <td>${cmpFmt(ab)}</td>
           <td>${cmpFmt(ar)}</td>
           <td class="num">${cmpSigned(ar - ab)}</td>

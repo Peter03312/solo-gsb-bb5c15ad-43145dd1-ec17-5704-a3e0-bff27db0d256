@@ -47,7 +47,7 @@ const App = {
     try {
       images = await API.listImages();
     } catch (e) {
-      el.innerHTML = `<p class="muted">${e.message}</p>`;
+      el.innerHTML = `<p class="muted">${window.escHtml(e.message)}</p>`;
       return;
     }
     if (!images.length) {
@@ -70,7 +70,12 @@ const App = {
       meta.className = 'meta';
       const name = document.createElement('div');
       name.className = 'name';
-      name.innerHTML = `<a href="#/edit/${im.id}" style="color:var(--text)">${im.filename}</a>`;
+      // 文件名是用户文本：只按字面文本显示（textContent），不拼入 HTML
+      const nameLink = document.createElement('a');
+      nameLink.href = `#/edit/${im.id}`;
+      nameLink.style.color = 'var(--text)';
+      nameLink.textContent = im.filename;
+      name.appendChild(nameLink);
       meta.appendChild(name);
       const sub = document.createElement('div');
       sub.className = 'sub';

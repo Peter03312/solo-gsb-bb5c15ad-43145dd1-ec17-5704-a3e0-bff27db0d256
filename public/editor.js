@@ -631,9 +631,9 @@ const Editor = {
     }
     const p = m.preview;
     const rows = p.cells.map((c) =>
-      `<div class="migrate-row ${c.ok ? 'ok' : 'err'}">${c.ok ? '✓' : '✗'} ${c.label}` +
+      `<div class="migrate-row ${c.ok ? 'ok' : 'err'}">${c.ok ? '✓' : '✗'} ${this.escapeHtml(c.label)}` +
       `${c.ok && c.areaUm2 != null ? `（净面积 ${fmt(c.areaUm2)} μm²，周长 ${fmt(c.perimeterUm)} μm）` : ''}` +
-      `${c.ok ? '' : `：${c.error}`}</div>`).join('');
+      `${c.ok ? '' : `：${this.escapeHtml(c.error)}`}</div>`).join('');
     res.innerHTML =
       `<div class="migrate-summary ${p.ok ? 'ok' : 'err'}">` +
       `${p.ok ? `全部 ${p.okCount} 个细胞通过校验（预览时目标草稿版本 v${p.target.version}），可确认迁移`
@@ -658,7 +658,7 @@ const Editor = {
       this.revisions = data.revisions;
       this.renderRevisionList();
     } catch (e) {
-      el.innerHTML = `<p class="muted">修订时间线加载失败：${e.message}</p>`;
+      el.innerHTML = `<p class="muted">修订时间线加载失败：${this.escapeHtml(e.message)}</p>`;
     }
   },
 
@@ -711,10 +711,9 @@ const Editor = {
     });
   },
 
+  // 用户文本一律经共享 escHtml 转义后拼入 HTML（见 public/escape.js）
   escapeHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return window.escHtml(s);
   },
 
   async togglePreview(revisionId) {
@@ -1119,7 +1118,7 @@ const Editor = {
     } else {
       const rows = fieldStats.map((s, i) => `
         <tr>
-          <td><span style="color:${FIELD_COLOR}">●</span> ${s.name}${this.fieldsDirty ? ' *' : ''}</td>
+          <td><span style="color:${FIELD_COLOR}">●</span> ${this.escapeHtml(s.name)}${this.fieldsDirty ? ' *' : ''}</td>
           <td>${s.holes}</td>
           <td>${fmtMm2(s.areaMm2)}</td>
           <td>${s.cellCount}</td>
@@ -1149,7 +1148,7 @@ const Editor = {
     } else {
       const rows = this.cells.map((cell, i) => `
         <tr>
-          <td><span style="color:${PALETTE[i % PALETTE.length]}">●</span> ${cell.name || `细胞 ${i + 1}`}${this.dirty ? ' *' : ''}</td>
+          <td><span style="color:${PALETTE[i % PALETTE.length]}">●</span> ${this.escapeHtml(cell.name || `细胞 ${i + 1}`)}${this.dirty ? ' *' : ''}</td>
           <td>${cell.holes.length}</td>
           <td>${fmt(cell.areaUm2)}</td>
           <td>${fmt(cell.perimeterUm)}</td>
@@ -1236,7 +1235,7 @@ const Editor = {
       cb.onchange = () => this.toggleMergeField(f.id, cb.checked);
       row.appendChild(cb);
       const name = document.createElement('span');
-      name.innerHTML = `<span style="color:${FIELD_COLOR}">●</span> ${f.name || `视野 ${i + 1}`}${this.fieldsDirty ? ' *' : ''}`;
+      name.innerHTML = `<span style="color:${FIELD_COLOR}">●</span> ${this.escapeHtml(f.name || `视野 ${i + 1}`)}${this.fieldsDirty ? ' *' : ''}`;
       row.appendChild(name);
       listEl.appendChild(row);
     });
@@ -1252,12 +1251,12 @@ const Editor = {
       const selected = window.MergeStats.resolveMergeSelection(this.fields, this.mergeSelected);
       s = window.MergeStats.buildMergeStats(selected, this.cells, calib ? calib.scale : null);
     } catch (e) {
-      resEl.innerHTML = `<p class="merge-error">${e.message}</p>`;
+      resEl.innerHTML = `<p class="merge-error">${this.escapeHtml(e.message)}</p>`;
       return;
     }
 
-    const names = s.fieldNames.join('、');
-    const counted = (s.countedCells || []).map((c) => c.name || c.key).join('、');
+    const names = s.fieldNames.map((n) => this.escapeHtml(n)).join('、');
+    const counted = (s.countedCells || []).map((c) => this.escapeHtml(c.name || c.key)).join('、');
     resEl.innerHTML = `
       <table class="measure compact">
         <tbody>
@@ -1307,7 +1306,7 @@ const Editor = {
       resolved = window.MergeStats.resolveFieldIdentifier(this.fields, q);
     } catch (e) {
       this.coverageResult = { error: e.message };
-      resEl.innerHTML = `<p class="merge-error">${e.message}</p>`;
+      resEl.innerHTML = `<p class="merge-error">${this.escapeHtml(e.message)}</p>`;
       return;
     }
     const calib = this.img ? this.img.calib : null;
@@ -1322,13 +1321,13 @@ const Editor = {
     if (!resEl) return;
     const s = this.coverageResult;
     if (!s) { resEl.innerHTML = ''; return; }
-    if (s.error) { resEl.innerHTML = `<p class="merge-error">${s.error}</p>`; return; }
+    if (s.error) { resEl.innerHTML = `<p class="merge-error">${this.escapeHtml(s.error)}</p>`; return; }
     const contributing = (s.contributingCells || [])
-      .map((c) => c.name || c.key).join('、');
+      .map((c) => this.escapeHtml(c.name || c.key)).join('、');
     resEl.innerHTML = `
       <table class="measure compact">
         <tbody>
-          <tr><th>视野</th><td>${s.fieldName || s.fieldId}${s.matchedBy === 'name' ? '（按名称匹配）' : ''}</td></tr>
+          <tr><th>视野</th><td>${this.escapeHtml(s.fieldName || s.fieldId)}${s.matchedBy === 'name' ? '（按名称匹配）' : ''}</td></tr>
           <tr><th>视野净面积</th>
             <td>${this.fmtPx(s.fieldAreaPx)} px² · ${s.fieldAreaText}${s.calibrated ? ' mm²' : ''}</td></tr>
           <tr><th>细胞覆盖面积</th>
@@ -1353,12 +1352,9 @@ const Editor = {
     if (!input || !resEl) return;
     if (document.activeElement !== input) input.value = this.coverageQuery || '';
     if (list) {
-      const escHtml = (s) => String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       list.innerHTML = this.fields.map((f, i) => {
         const name = f.name || `视野 ${i + 1}`;
-        return `<option value="${escHtml(f.id)}">${escHtml(name)}</option>`;
+        return `<option value="${this.escapeHtml(f.id)}">${this.escapeHtml(name)}</option>`;
       }).join('');
     }
     if (!this.fields.length) {

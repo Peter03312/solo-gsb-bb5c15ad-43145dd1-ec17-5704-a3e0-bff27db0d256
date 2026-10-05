@@ -43,7 +43,7 @@ const Reports = {
       chains = (await API.listReportChains()).chains || [];
     } catch (e) {
       document.getElementById('report-list').innerHTML =
-        `<p class="muted">更正链加载失败：${e.message}</p>`;
+        `<p class="muted">更正链加载失败：${this.esc(e.message)}</p>`;
       return;
     }
     this.chains = chains;
@@ -87,7 +87,7 @@ const Reports = {
         const chainTxt = chain.length > 1
           ? ` · <span style="color:var(--accent)">更正链 ×${chain.length}</span>（当前为第 ${chain.length} 版）`
           : '';
-        sub.innerHTML = `${r.filename} · ${r.width}×${r.height}px · 细胞 ${r.cellCount} 个 · ` +
+        sub.innerHTML = `${this.esc(r.filename)} · ${r.width}×${r.height}px · 细胞 ${r.cellCount} 个 · ` +
           `发布于 ${r.createdAt} · 基于草稿 v${r.draftVersion}${chainTxt}`;
         meta.appendChild(sub);
         if (chain.reason) {
@@ -209,7 +209,7 @@ const Reports = {
 
     document.getElementById('rp-title').textContent = r.title;
     document.getElementById('rp-meta').innerHTML =
-      `图片：<b>${r.filename}</b>（${r.width}×${r.height} px）<br>` +
+      `图片：<b>${this.esc(r.filename)}</b>（${r.width}×${r.height} px）<br>` +
       `发布时间：${r.createdAt}<br>` +
       `发布时草稿版本：<b>v${r.draftVersion}</b><br>` +
       `标尺：p1 (${r.calib.p1.x.toFixed(1)}, ${r.calib.p1.y.toFixed(1)})，` +
@@ -223,7 +223,7 @@ const Reports = {
 
     const rows = r.cells.map((c, i) => `
       <tr>
-        <td><span style="color:${window.CANVAS_COLORS[i % window.CANVAS_COLORS.length]}">●</span> ${c.name || `细胞 ${i + 1}`}</td>
+        <td><span style="color:${window.CANVAS_COLORS[i % window.CANVAS_COLORS.length]}">●</span> ${this.esc(c.name || `细胞 ${i + 1}`)}</td>
         <td>${c.holes.length}</td>
         <td>${this.fmt(c.areaUm2)}</td>
         <td>${this.fmt(c.perimeterUm)}</td>
@@ -242,7 +242,7 @@ const Reports = {
     } else {
       const frows = fs.map((s) => `
         <tr>
-          <td><span style="color:#ffd400">●</span> ${s.name}</td>
+          <td><span style="color:#ffd400">●</span> ${this.esc(s.name)}</td>
           <td>${s.holes}</td>
           <td>${s.areaText}</td>
           <td>${s.cellCount}</td>
@@ -428,10 +428,9 @@ const Reports = {
     this.zonesSelectedKey = null;
   },
 
+  // 用户文本一律经共享 escHtml 转义后拼入 HTML（见 public/escape.js）
   esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return window.escHtml(s);
   },
 
   // ---------- 更正链：横幅、历史追溯、发起更正 ----------
@@ -622,7 +621,7 @@ const Reports = {
       cb.onchange = () => this.toggleReportMergeField(r, f.id, cb.checked);
       row.appendChild(cb);
       const name = document.createElement('span');
-      name.innerHTML = `<span style="color:#ffd400">●</span> ${f.name || `视野 ${i + 1}`}`;
+      name.innerHTML = `<span style="color:#ffd400">●</span> ${this.esc(f.name || `视野 ${i + 1}`)}`;
       row.appendChild(name);
       listEl.appendChild(row);
     });
@@ -638,12 +637,12 @@ const Reports = {
       const selected = window.MergeStats.resolveMergeSelection(fields, this.mergeSelected);
       s = window.MergeStats.buildMergeStats(selected, r.cells || [], r.calib ? r.calib.scale : null);
     } catch (e) {
-      resEl.innerHTML = `<p class="merge-error">${e.message}</p>`;
+      resEl.innerHTML = `<p class="merge-error">${this.esc(e.message)}</p>`;
       return;
     }
 
-    const names = s.fieldNames.join('、');
-    const counted = (s.countedCells || []).map((c) => c.name || c.key).join('、');
+    const names = s.fieldNames.map((n) => this.esc(n)).join('、');
+    const counted = (s.countedCells || []).map((c) => this.esc(c.name || c.key)).join('、');
     resEl.innerHTML = `
       <table class="measure compact">
         <tbody>
